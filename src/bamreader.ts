@@ -63,12 +63,6 @@ export class BAMReader {
     return this._bgzfBlock.chrMap;
   }
 
-  public printHeader() {
-    this.read(0);
-
-    this._bgzfBlock.printHeader();
-  }
-
   public get headerText(): string {
     this.read(0);
 

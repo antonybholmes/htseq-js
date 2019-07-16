@@ -1,3 +1,6 @@
+/**
+ * Map between ref ids and chromosomes. BAM files represent chromosomes using sequential numbers from 0 to n.
+ */
 export class ChrMap {
   private _chrToRef: object;
   private _chrNames: string[];
@@ -7,11 +10,21 @@ export class ChrMap {
     this._chrNames = chrNames;
   }
 
+  /**
+   * Convert chr to numerical id.
+   * 
+   * @param chr   Chromosome.
+   */
   public getRef(chr: string): number {
     return this._chrToRef[chr];
   }
 
-  public getChr(index: number): string {
-    return this._chrNames[index];
+  /**
+   * Convert ref id to chromosome.
+   * 
+   * @param refId   refid
+   */
+  public getChr(refId: number): string {
+    return this._chrNames[refId];
   }
 }

@@ -50,7 +50,12 @@ export const CIGAR_DECODER = [
   "?"
 ];
 
+/**
+ * Represents an uncompressed BAM block taken from a BGZF block.
+ */
 export class BAMBlockReader extends BinaryReader {
+  // Cache current alignment.
+
   private _headerText: string = null;
   private _chrMap: ChrMap = null;
   private _blockSize: number = -1;
@@ -80,79 +85,87 @@ export class BAMBlockReader extends BinaryReader {
     super(data);
   }
 
+  /**
+   * Returns a mapping between ref ids and chrosomes. This must be
+   * called on a block starting with the magic BAM number (typically the
+   * first block), otherwise it will fail.
+   */
   public get chrMap(): ChrMap {
     if (this._chrMap === null) {
       // Make sure we are at beginning of block
-      this.readHeader();
+      this.reset();
+
+      const magic: number = this.readInt(); // bamutils.readString(buf, bc, 4);
+      
+      // Only the header contains the magic number plus other
+      // reference list, all other blocks just contain the alignments
+      // so if this is not the header, reset the buffer and skip
+      if (magic === BAM_MAGIC_NUMBER) {
+        const chrToIndex: object = {};
+        const chrNames = [];
+        const chrAliasTable = {};
+
+        const lText: number = this.readInt();
+        const text: string = this.readString(lText);
+        const nRef: number = this.readInt();
+
+        let lRef: number = -1;
+        let lName: number = -1;
+        let name: string;
+
+        for (let i: number = 0; i < nRef; ++i) {
+          lName = this.readInt();
+          name = this.readStringNullTerm(lName);
+          lRef = this.readInt();
+
+          chrToIndex[name] = i;
+          chrNames[i] = name;
+        }
+        
+        this._chrMap = new ChrMap(chrToIndex, chrNames);
+      } else {
+        // Assume we are in a block of alignments so reset
+        // buffer pointer back to 0 so we can read all of
+        // the alignments
+        this.reset();
+      }
     }
 
     return this._chrMap;
   }
 
-  public printHeader() {
-    console.log(this.headerText);
-  }
-
+  /**
+   * Getter that returns the unformatted heading text.
+   */
   public get headerText() {
     if (this._headerText === null) {
       this.reset();
 
-      const magic: number = this.readInt(); // bamutils.readString(buf, bc, 4);
+      const magic: number = this.readInt();
     
       // Only the header contains the magic number plus other
       // reference list, all other blocks just contain the alignments
       // so if this is not the header, reset the buffer and skip
-      if (magic !== BAM_MAGIC_NUMBER) {
+      if (magic === BAM_MAGIC_NUMBER) {
+        const lText: number = this.readInt();
+        this._headerText = this.readString(lText);
+      } else {
+        // Since this is not the magic number, it must be a block of 
+        // alignments so reset the buffer pointer to 0 so that the 
+        // alignments can be read.
         this.reset();
-        return;
       }
-
-      const lText: number = this.readInt();
-      this._headerText = this.readString(lText);
     }
 
     return this._headerText
   }
 
-  public readHeader() {
-    this.reset();
-
-    const magic: number = this.readInt(); // bamutils.readString(buf, bc, 4);
-    
-    // Only the header contains the magic number plus other
-    // reference list, all other blocks just contain the alignments
-    // so if this is not the header, reset the buffer and skip
-    if (magic !== BAM_MAGIC_NUMBER) {
-      this.reset();
-      return;
-    }
-
-    const chrToIndex: object = {};
-    const chrNames = [];
-    const chrAliasTable = {};
-
-    const lText: number = this.readInt();
-    const text: string = this.readString(lText);
-    const nRef: number = this.readInt();
-
-    let lRef: number = -1;
-    let lName: number = -1;
-    let name: string;
-
-    for (let i: number = 0; i < nRef; ++i) {
-      lName = this.readInt();
-      name = this.readStringNullTerm(lName);
-      lRef = this.readInt();
-
-      chrToIndex[name] = i;
-      chrNames[i] = name;
-    }
-    
-    if (this._chrMap === null) {
-      this._chrMap = new ChrMap(chrToIndex, chrNames);
-    }
-  }
-
+  /**
+   * Sets the buffer position within the uncompressed data using
+   * the coffset field of the virtual file offset.
+   * 
+   * @param vfoffset   A virtual file offset object.
+   */
   public setBlockByVFOffset(vfoffset: VFOffset) {
     this.offset = vfoffset.uoffset;
   }
@@ -180,7 +193,12 @@ export class BAMBlockReader extends BinaryReader {
     // convert refid back to chr string
     const chr: string = this.chrMap.getChr(this._refId);
 
-    this._record = new Alignment(chr, this._pos, this._readName);
+    this._record = new Alignment(chr, 
+      this._pos, 
+      this._readName,
+      this._cigar,
+      this._seq,
+      this._qual);
 
     // Skip to end of block
     this.offset = offset + this._blockSize + 4;
@@ -203,7 +221,10 @@ export class BAMBlockReader extends BinaryReader {
   public readSeq(length: number): string {
     const seq = [];
 
-    const end = this.offset + ((length + 1) >> 1);
+    // Divide by 2 using bit shift.
+    const l = (length + 1) >> 1;
+
+    const end = this.offset + l;
 
     for (let i: number = this.offset; i < end; ++i) {
       const sb = this.buffer[i];
@@ -211,10 +232,11 @@ export class BAMBlockReader extends BinaryReader {
       seq.push(SEQ_DECODER[sb & 0x0f]);
     }
 
+    // Since we look at the buffer directly, manually update position.
+    this.offset += l;
+
     // seq might have one extra character (if lseq is an odd number) which is why we
     // slice the array to remove the unused 4bits
-    this.offset += length;
-
     return seq.slice(0, length).join("");
   }
 
@@ -251,12 +273,26 @@ export class BAMBlockReader extends BinaryReader {
     let seq: string = "";
 
     for (let i: number = 0; i < length; ++i) {
-      seq += String.fromCharCode(this.readByte());
+      seq += String.fromCharCode(this.readByte() + 33);
     }
+
+    console.log('len', seq.length);
 
     // let seq = buf.slice(offset, offset + length).map(x => String.fromCharCode(x + 33)).join("")
 
     return seq;
+  }
+
+  public readPhred33(length: number): number[] {
+    let ret: number[] = [];
+
+    for (let i: number = 0; i < length; ++i) {
+      ret.push(this.readByte());
+    }
+
+    // let seq = buf.slice(offset, offset + length).map(x => String.fromCharCode(x + 33)).join("")
+
+    return ret;
   }
 
 

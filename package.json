@@ -1,8 +1,9 @@
 {
   "name": "htseq-js",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "A TypeScript implementation of a BAM file reader for dealing with genomic sequencing data.",
   "main": "index.js",
+  "keywords": ["BAM", "SAM", "genomic"],
   "scripts": {
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
@@ -10,7 +11,7 @@
     "test": "mocha -r ts-node/register src/test/**/*.ts",
     "debug": "npm run-script build; node lib/main.js"
   },
-  "author": "Antony Holmes dev@antonyholmes.com",
+  "author": "Antony Holmes antony@antonyholmes.com",
   "license": "MIT",
   "repository": {
     "type": "git",

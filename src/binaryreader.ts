@@ -2,24 +2,10 @@ import fs = require("fs");
 import { VFOffset } from "./vfoffset";
 import { BUFFER_SIZE } from "./bam";
 
-
+/**
+ * Wrapper for a byte buffer for extracting numbers and strings.
+ */
 export class BinaryReader {
-  
-  public static fromFile(file: string, offset?: number) {
-    if (offset === undefined) {
-      offset = 0;
-    }
-
-    const fd = fs.openSync(file, "r");
-    const buffer: Buffer = Buffer.alloc(BUFFER_SIZE);
-    fs.readSync(fd, buffer, offset, BUFFER_SIZE, 0);
-    return this.fromBuffer(buffer);
-  }
-
-  public static fromBuffer(buffer: Buffer) {
-    return new BinaryReader(buffer);
-  }
-
   private _data: Buffer;
   private _offset: number = 0;
   private _lastIndex: number = 0;
@@ -44,7 +30,7 @@ export class BinaryReader {
   }
 
   /**
-   * Read data from file into current buffer.
+   * Read data from file into underlying buffer.
    * 
    * @param file      File to read from.
    * @param offset    offset in the buffer to start writing at. 
@@ -164,7 +150,7 @@ export class BinaryReader {
   public readVFOffset(): VFOffset {
     // Since numbers are little endian, and we are using 48bits (6 bytes)
     // for the int, skip the first 2 bytes of the 8 and read the next 4
-    // as an int, and then consume the remaining two as a short
+    // as an int, and then consume the remaining two as a short.
     const coffset: number = this._data.readUInt32LE(this._offset + 2);
     const uoffset: number = this._data.readUInt16LE(this._offset + 6);
 
