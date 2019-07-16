@@ -1,18 +1,30 @@
 {
-  "name": "bamjs",
+  "name": "htseq-js",
   "version": "1.0.0",
-  "description": "",
+  "description": "A TypeScript implementation of a BAM file reader for dealing with genomic sequencing data.",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "test": "npm run-script build; node lib/main.js"
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "tslint -p tsconfig.json",
+    "test": "mocha -r ts-node/register src/test/**/*.ts",
+    "debug": "npm run-script build; node lib/main.js"
   },
-  "author": "Antony B Holmes",
+  "author": "Antony Holmes dev@antonyholmes.com",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonybholmes/htseq-js"
+  },
   "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.7",
     "@types/node": "^12.0.4",
-    "prettier": "^1.17.1",
-    "tslint": "^5.17.0",
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4",
+    "prettier": "^1.18.2",
+    "ts-node": "^8.3.0",
+    "tslint": "^5.18.0",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.5.1"
   }

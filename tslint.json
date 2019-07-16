@@ -2,6 +2,14 @@
   "defaultSeverity": "error",
   "extends": ["tslint:recommended", "tslint-config-prettier"],
   "jsRules": {},
-  "rules": {},
+  "rules": {
+    "no-bitwise": false,
+    "variable-name": [true, "check-format", "allow-leading-underscore"],
+    "ordered-imports": [true, {
+      "import-sources-order": "any",
+      "named-imports-order": "case-insensitive"
+    }],
+    "no-console": false
+  },
   "rulesDirectory": []
 }
